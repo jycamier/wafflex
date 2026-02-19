@@ -1,0 +1,4 @@
+{"method": "GET", "url": "http://example.com/", "headers": {"Host": "example.com", "User-Agent": "Mozilla/5.0"}, "body": ""}
+{"method": "GET", "url": "http://example.com/search?q=<script>alert(1)</script>", "headers": {"Host": "example.com", "User-Agent": "Mozilla/5.0", "X-Forwarded-For": "192.168.1.100"}, "body": ""}
+{"method": "POST", "url": "http://example.com/comment", "headers": {"Host": "example.com", "Content-Type": "application/json", "X-Forwarded-For": "10.0.0.50"}, "body": "{\"text\":\"<script>alert(document.cookie)</script>\"}"}
+{"method": "GET", "url": "http://example.com/user?id=1' OR '1'='1", "headers": {"Host": "example.com", "X-Forwarded-For": "172.16.0.25"}, "body": ""}
