@@ -1,0 +1,39 @@
+version: 2
+
+builds:
+  - env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+
+kos:
+  - repository: ghcr.io/jycamier/wafflex
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - latest
+      - "{{.Tag}}"
+      - "{{.Major}}.{{.Minor}}"
+    bare: true
+    creation_time: "{{.CommitTimestamp}}"
+    sbom: none
+
+brews:
+  - repository:
+      owner: jycamier
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/jycamier/wafflex"
+    description: "Test WAF rules by replaying real traffic through Coraza WAF"
+    license: "Apache-2.0"
+
+changelog:
+  use: github-native

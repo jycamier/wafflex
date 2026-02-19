@@ -1,0 +1,12 @@
+# Ignore captured traffic data
+data/
+*.gor
+
+# Docker volumes
+.docker/
+
+# Config file (may contain credentials)
+.wafflex.yaml
+
+# Analysis results
+results/

