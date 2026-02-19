@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-19T11:57:09.322453+01:00",
+    "total_requests": 2,
+    "blocked_requests": 1
+  },
+  "results": [
+    {
+      "id": "edd1ab6e-d5b6-4492-8c41-bdfeb822fbdf",
+      "request": {
+        "method": "GET",
+        "url": "/test?param=\u003cscript\u003ealert(1)\u003c/script\u003e",
+        "headers": {},
+        "body": ""
+      },
+      "blocked": true,
+      "rules_triggered": [
+        {
+          "id": "1",
+          "msg": "XSS Attack Detected",
+          "severity": "EMERGENCY",
+          "tags": [
+            "attack-xss"
+          ]
+        }
+      ],
+      "interruption": {
+        "action": "deny",
+        "status": 403
+      },
+      "logs": "[EMERGENCY] Rule 1: XSS Attack Detected\n"
+    }
+  ]
+}

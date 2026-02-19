@@ -1,0 +1,50 @@
+{
+  "engine": "custom",
+  "rules": [
+    {
+      "id": "1001",
+      "name": "XSS Detection",
+      "pattern": "<script[^>]*>.*?</script>|javascript:|onerror=|onload=",
+      "location": "all",
+      "action": "block",
+      "severity": "HIGH",
+      "tags": ["xss", "injection"]
+    },
+    {
+      "id": "1002",
+      "name": "SQL Injection Detection",
+      "pattern": "('|(\\-\\-)|(;)|(\\|\\|)|(\\*)|(union)|(select)|(insert)|(drop)|(delete)|(update)|(or 1=1))",
+      "location": "all",
+      "action": "block",
+      "severity": "CRITICAL",
+      "tags": ["sqli", "injection"]
+    },
+    {
+      "id": "1003",
+      "name": "Path Traversal Detection",
+      "pattern": "\\.\\./|\\.\\.\\\\/|/etc/passwd|/etc/shadow",
+      "location": "url",
+      "action": "block",
+      "severity": "HIGH",
+      "tags": ["lfi", "path-traversal"]
+    },
+    {
+      "id": "1004",
+      "name": "Command Injection Detection",
+      "pattern": ";\\s*(cat|ls|wget|curl|nc|bash|sh|cmd|powershell)",
+      "location": "all",
+      "action": "block",
+      "severity": "CRITICAL",
+      "tags": ["rce", "command-injection"]
+    },
+    {
+      "id": "2001",
+      "name": "Suspicious User-Agent",
+      "pattern": "(sqlmap|nikto|nmap|masscan|metasploit)",
+      "location": "headers",
+      "action": "log",
+      "severity": "MEDIUM",
+      "tags": ["scanner", "recon"]
+    }
+  ]
+}
