@@ -1,0 +1,39 @@
+# OWASP Top 10 - A02:2021 Cryptographic Failures
+# Exposition de données sensibles
+
+### Sensitive Data in URL
+GET /api/users?ssn=123-45-6789&credit_card=4532123456789012 HTTP/1.1
+Host: {{host}}
+
+### Unencrypted HTTP for sensitive data
+POST /login HTTP/1.1
+Host: {{host}}
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 35
+
+username=admin&password=SuperSecret
+
+### Weak encryption - MD5 hash
+POST /api/auth HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 58
+
+{"username": "admin", "password_hash": "5f4dcc3b5aa765d61d8327deb882cf99"}
+
+### Backup file exposure
+GET /database.sql.bak HTTP/1.1
+Host: {{host}}
+
+### Config file exposure
+GET /config.php.old HTTP/1.1
+Host: {{host}}
+
+### Source code exposure
+GET /app.py.swp HTTP/1.1
+Host: {{host}}
+
+### Certificate validation bypass attempt
+GET /api/data HTTP/1.1
+Host: {{host}}
+X-Forwarded-Proto: http

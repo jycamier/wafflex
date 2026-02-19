@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-19T11:59:25.825089+01:00",
+    "total_requests": 2,
+    "blocked_requests": 1
+  },
+  "results": [
+    {
+      "id": "4665e188-dcfe-4a8d-ac06-b2692def94e0",
+      "request": {
+        "method": "GET",
+        "url": "/test?param=../../../etc/passwd",
+        "headers": {},
+        "body": ""
+      },
+      "blocked": true,
+      "rules_triggered": [
+        {
+          "id": "3",
+          "msg": "Path Traversal Detected",
+          "severity": "EMERGENCY",
+          "tags": [
+            "attack-lfi"
+          ]
+        }
+      ],
+      "interruption": {
+        "action": "deny",
+        "status": 403
+      },
+      "logs": "[EMERGENCY] Rule 3: Path Traversal Detected\n"
+    }
+  ]
+}
