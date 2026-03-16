@@ -9,6 +9,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jycamier/wafflex/internal/baseline"
 	"github.com/jycamier/wafflex/internal/diff"
 	"github.com/jycamier/wafflex/internal/hash"
 	"github.com/jycamier/wafflex/internal/models"
@@ -109,7 +110,15 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 	report := loadReport(outputFile)
 
 	if doDiff {
-		launchDiffTUI(report, outputFile, trafficHash, rulesHash)
+		resultsDir := filepath.Dir(outputFile)
+		baselinePath, _ := baseline.GetPath(resultsDir)
+		if baselinePath == "" {
+			slog.Warn("no baseline set, falling back to explore (use 'wafflex baseline' to set one)")
+			launchExploreTUI(report)
+			return
+		}
+		baselineReport := loadReport(baselinePath)
+		launchBaselineDiffTUI(baselineReport, report)
 		return
 	}
 	launchExploreTUI(report)
@@ -241,28 +250,14 @@ func launchExploreTUI(report *models.AnalysisReport) {
 	}
 }
 
-func launchDiffTUI(report *models.AnalysisReport, currentFile, trafficHash, rulesHash string) {
-	resultsDir := filepath.Dir(currentFile)
-	prevFile, err := hash.FindPreviousDiff(resultsDir, trafficHash, rulesHash)
-	if err != nil {
-		slog.Error("failed to find previous result", "error", err)
-		os.Exit(1)
-	}
-	if prevFile == "" {
-		slog.Warn("no previous result found for diff, falling back to explore")
-		launchExploreTUI(report)
-		return
-	}
-
-	prevReport := loadReport(prevFile)
-
-	diffReport := diff.Compare(prevReport, report)
+func launchBaselineDiffTUI(baselineReport, currentReport *models.AnalysisReport) {
+	diffReport := diff.Compare(baselineReport, currentReport)
 	if diffReport.Total() == 0 {
-		slog.Info("no differences found")
+		slog.Info("no differences found vs baseline")
 		return
 	}
 
-	slog.Info("differences found",
+	slog.Info("differences vs baseline",
 		"total", diffReport.Total(),
 		"added", len(diffReport.Added),
 		"removed", len(diffReport.Removed),

@@ -3,9 +3,9 @@ package cmd
 import (
 	"log/slog"
 	"os"
-	"sort"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/jycamier/wafflex/internal/baseline"
 	"github.com/jycamier/wafflex/internal/diff"
 	"github.com/jycamier/wafflex/internal/hash"
 	"github.com/jycamier/wafflex/internal/tui"
@@ -27,8 +27,19 @@ func runDiff(cmd *cobra.Command, args []string) {
 		file1 = args[0]
 		file2 = args[1]
 	} else {
+		resultsDir := resolveResultsDir()
+
+		// file1 = baseline
+		baselinePath, _ := baseline.GetPath(resultsDir)
+		if baselinePath == "" {
+			slog.Error("no baseline set (use 'wafflex baseline' to set one)")
+			os.Exit(1)
+		}
+		file1 = baselinePath
+
+		// file2 = latest result
 		if appConfig == nil {
-			slog.Error("config file required for auto-diff (or provide two file arguments)")
+			slog.Error("config file required for auto-diff")
 			os.Exit(1)
 		}
 		trafficHash, err := hash.TrafficSourceHash(appConfig)
@@ -36,26 +47,12 @@ func runDiff(cmd *cobra.Command, args []string) {
 			slog.Error("failed to compute traffic hash", "error", err)
 			os.Exit(1)
 		}
-
-		resultsDir := appConfig.ResultsDir
-		if resultsDir == "" {
-			resultsDir = "."
-		}
-
-		results, err := hash.FindResults(resultsDir, trafficHash)
-		if err != nil {
-			slog.Error("failed to scan results", "error", err)
+		latest, err := hash.FindLatestResult(resultsDir, trafficHash)
+		if err != nil || latest == "" {
+			slog.Error("no analysis results found, run 'analyze' first")
 			os.Exit(1)
 		}
-
-		unique := uniqueByRulesHash(results)
-		if len(unique) < 2 {
-			slog.Error("need at least 2 results with different rules for auto-diff, provide files explicitly", "found", len(unique))
-			os.Exit(1)
-		}
-
-		file1 = unique[1].Path // older
-		file2 = unique[0].Path // newer
+		file2 = latest
 	}
 
 	report1 := loadReport(file1)
@@ -80,27 +77,4 @@ func runDiff(cmd *cobra.Command, args []string) {
 		slog.Error("TUI error", "error", err)
 		os.Exit(1)
 	}
-}
-
-// uniqueByRulesHash returns results sorted by mtime desc, keeping only the
-// most recent per unique rules hash.
-func uniqueByRulesHash(results []hash.ResultFile) []hash.ResultFile {
-	sort.Slice(results, func(i, j int) bool {
-		fi, _ := os.Stat(results[i].Path)
-		fj, _ := os.Stat(results[j].Path)
-		if fi == nil || fj == nil {
-			return false
-		}
-		return fi.ModTime().After(fj.ModTime())
-	})
-
-	seen := make(map[string]bool)
-	var unique []hash.ResultFile
-	for _, rf := range results {
-		if !seen[rf.RulesHash] {
-			seen[rf.RulesHash] = true
-			unique = append(unique, rf)
-		}
-	}
-	return unique
 }
