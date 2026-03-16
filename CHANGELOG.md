@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2](https://github.com/jycamier/wafflex/compare/v0.0.1...v0.0.2) (2026-03-16)
+
+
+### Features
+
+* delete mention of the initial commit ([3dfca3e](https://github.com/jycamier/wafflex/commit/3dfca3e67d12e8cfabf039420ae52416f7e5cd6d))
+
 ## 0.0.1 (2026-03-16)
 
 
