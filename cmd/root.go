@@ -56,6 +56,8 @@ func init() {
 	rootCmd.AddCommand(exploreCmd)
 	rootCmd.AddCommand(diffCmd)
 	rootCmd.AddCommand(cacheCmd)
+	rootCmd.AddCommand(baselineCmd)
+	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
