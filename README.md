@@ -19,11 +19,19 @@ A CLI tool to test WAF (Web Application Firewall) rules by replaying HTTP traffi
 
 ## Installation
 
+### Go Install (recommended)
+
 ```bash
 go install github.com/jycamier/wafflex@latest
 ```
 
-Or build from source:
+### Pre-built binaries
+
+Download the latest binary for your platform from the [Releases page](https://github.com/jycamier/wafflex/releases).
+
+Available for Linux (amd64), macOS (arm64), and Windows (amd64).
+
+### Build from source
 
 ```bash
 git clone https://github.com/jycamier/wafflex
