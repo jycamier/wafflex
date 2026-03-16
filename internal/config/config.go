@@ -35,6 +35,7 @@ type Config struct {
 	CorazaConfig string        `mapstructure:"coraza-config"`
 	Traffic      TrafficConfig `mapstructure:"traffic"`
 	ResultsDir   string        `mapstructure:"results-dir"`
+	CacheTTL     string        `mapstructure:"cache-ttl"`
 }
 
 // Load reads config from an explicit file path.

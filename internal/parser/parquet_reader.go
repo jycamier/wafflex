@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/duckdb/duckdb-go/v2"
 	"github.com/jycamier/wafflex/internal/cache"
@@ -24,6 +25,13 @@ type ParquetReader struct {
 	db        *sql.DB
 	query     string
 	columns   config.ColumnMapping
+	cacheTTL  time.Duration
+}
+
+// SetCacheTTL sets the maximum age for cached query results.
+// A value of 0 means no expiry.
+func (r *ParquetReader) SetCacheTTL(d time.Duration) {
+	r.cacheTTL = d
 }
 
 // NewParquetReader creates a reader that executes a DuckDB SQL query
@@ -130,7 +138,7 @@ func (r *ParquetReader) Close() error {
 // On cache hit: returns a query that reads from the cached local parquet file.
 // On cache miss: executes the original query, saves results to cache, returns a query reading the cache.
 func (r *ParquetReader) resolveQuery() (string, error) {
-	cached, err := cache.Lookup(r.query)
+	cached, err := cache.Lookup(r.query, r.cacheTTL)
 	if err != nil {
 		return "", fmt.Errorf("cache lookup failed: %w", err)
 	}

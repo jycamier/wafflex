@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestQueryKeyDeterministic(t *testing.T) {
@@ -126,5 +127,101 @@ func TestClearNonExistent(t *testing.T) {
 
 	if err := Clear(); err != nil {
 		t.Fatalf("clear on non-existent dir should not error: %v", err)
+	}
+}
+
+func TestLookupNoTTL(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(envCacheDir, dir)
+
+	query := "SELECT * FROM test"
+	cachePath := filepath.Join(dir, QueryKey(query))
+	if err := os.WriteFile(cachePath, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// No TTL: should always hit
+	path, err := Lookup(query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != cachePath {
+		t.Errorf("expected cache hit without TTL, got empty")
+	}
+}
+
+func TestLookupZeroTTL(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(envCacheDir, dir)
+
+	query := "SELECT * FROM test"
+	cachePath := filepath.Join(dir, QueryKey(query))
+	if err := os.WriteFile(cachePath, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// TTL of 0: should always hit (no expiry)
+	path, err := Lookup(query, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != cachePath {
+		t.Errorf("expected cache hit with zero TTL, got empty")
+	}
+}
+
+func TestLookupFreshEntry(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(envCacheDir, dir)
+
+	query := "SELECT * FROM test"
+	cachePath := filepath.Join(dir, QueryKey(query))
+	if err := os.WriteFile(cachePath, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// TTL of 1 hour: file just created, should hit
+	path, err := Lookup(query, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != cachePath {
+		t.Errorf("expected cache hit for fresh entry, got empty")
+	}
+}
+
+func TestLookupStaleEntry(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv(envCacheDir, dir)
+
+	query := "SELECT * FROM test"
+	cachePath := filepath.Join(dir, QueryKey(query))
+	metaPath := filepath.Join(dir, queryMetaKey(query))
+	if err := os.WriteFile(cachePath, []byte("data"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(metaPath, []byte(query), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Backdate the file to 2 hours ago
+	past := time.Now().Add(-2 * time.Hour)
+	os.Chtimes(cachePath, past, past)
+
+	// TTL of 1 hour: file is stale, should miss and remove
+	path, err := Lookup(query, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if path != "" {
+		t.Errorf("expected cache miss for stale entry, got %q", path)
+	}
+
+	// Both files should be removed
+	if _, err := os.Stat(cachePath); !os.IsNotExist(err) {
+		t.Error("expected stale parquet file to be removed")
+	}
+	if _, err := os.Stat(metaPath); !os.IsNotExist(err) {
+		t.Error("expected stale metadata file to be removed")
 	}
 }

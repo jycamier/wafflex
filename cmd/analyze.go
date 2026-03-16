@@ -86,9 +86,16 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 		outputFile = "results.json"
 	}
 
-	// Skip analysis if result already exists
-	if _, err := os.Stat(outputFile); err == nil {
-		slog.Info("results already exist, skipping analysis", "path", outputFile)
+	// Skip analysis if result already exists and is still fresh
+	if info, err := os.Stat(outputFile); err == nil {
+		ttl := parseCacheTTL(appConfig)
+		age := time.Since(info.ModTime())
+		if ttl == 0 || age <= ttl {
+			slog.Info("results already exist, skipping analysis", "path", outputFile)
+		} else {
+			slog.Info("results expired, re-running analysis", "path", outputFile, "age", age.Truncate(time.Second))
+			executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash)
+		}
 	} else {
 		executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash)
 	}

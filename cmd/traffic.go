@@ -3,10 +3,14 @@ package cmd
 import (
 	"log/slog"
 	"os"
+	"time"
 
+	"github.com/jycamier/wafflex/internal/config"
 	"github.com/jycamier/wafflex/internal/fetcher"
 	"github.com/jycamier/wafflex/internal/parser"
 )
+
+const defaultCacheTTL = 24 * time.Hour
 
 // openTrafficReader creates a TrafficReader from config and/or CLI flags.
 // Returns the reader and an optional cleanup function (for fetched remote files).
@@ -28,6 +32,7 @@ func openTrafficReader(gorFile string) (parser.TrafficReader, func()) {
 			slog.Error("failed to create parquet reader", "error", err)
 			os.Exit(1)
 		}
+		reader.SetCacheTTL(parseCacheTTL(appConfig))
 		return reader, func() {}
 	}
 
@@ -55,4 +60,16 @@ func openTrafficReader(gorFile string) (parser.TrafficReader, func()) {
 	}
 
 	return reader, cleanup
+}
+
+func parseCacheTTL(cfg *config.Config) time.Duration {
+	if cfg == nil || cfg.CacheTTL == "" {
+		return defaultCacheTTL
+	}
+	d, err := time.ParseDuration(cfg.CacheTTL)
+	if err != nil {
+		slog.Warn("invalid cache-ttl, using default", "value", cfg.CacheTTL, "default", defaultCacheTTL)
+		return defaultCacheTTL
+	}
+	return d
 }

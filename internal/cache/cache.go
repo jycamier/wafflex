@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const (
@@ -45,19 +46,33 @@ func queryMetaKey(query string) string {
 }
 
 // Lookup checks if a cached parquet file exists for the given query.
-// Returns the path if found, empty string otherwise.
-func Lookup(query string) (string, error) {
+// If maxAge is provided and > 0, entries older than maxAge are considered stale
+// and removed automatically.
+// Returns the path if found and fresh, empty string otherwise.
+func Lookup(query string, maxAge ...time.Duration) (string, error) {
 	dir, err := Dir()
 	if err != nil {
 		return "", err
 	}
 
 	path := filepath.Join(dir, QueryKey(query))
-	if _, err := os.Stat(path); err == nil {
-		return path, nil
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", nil
 	}
 
-	return "", nil
+	if len(maxAge) > 0 && maxAge[0] > 0 && time.Since(info.ModTime()) > maxAge[0] {
+		removeEntry(dir, query)
+		return "", nil
+	}
+
+	return path, nil
+}
+
+// removeEntry deletes both the cached parquet and its query metadata file.
+func removeEntry(dir, query string) {
+	os.Remove(filepath.Join(dir, QueryKey(query)))
+	os.Remove(filepath.Join(dir, queryMetaKey(query)))
 }
 
 // Path returns the full path where a cached result should be stored.
@@ -136,10 +151,10 @@ func Clear() error {
 	if err != nil {
 		return err
 	}
+	return ClearDir(dir)
+}
 
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil
-	}
-
+// ClearDir removes all files in the given directory.
+func ClearDir(dir string) error {
 	return os.RemoveAll(dir)
 }
