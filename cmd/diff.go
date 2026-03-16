@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"sort"
@@ -18,10 +17,10 @@ var diffCmd = &cobra.Command{
 	Short: "Compare two analysis results",
 	Long:  `Opens an interactive TUI to compare differences between two WAF analysis results. Without arguments, auto-detects the two most recent results for the current traffic source.`,
 	Args:  cobra.MaximumNArgs(2),
-	RunE:  runDiff,
+	Run:   runDiff,
 }
 
-func runDiff(cmd *cobra.Command, args []string) error {
+func runDiff(cmd *cobra.Command, args []string) {
 	var file1, file2 string
 
 	if len(args) == 2 {
@@ -29,11 +28,13 @@ func runDiff(cmd *cobra.Command, args []string) error {
 		file2 = args[1]
 	} else {
 		if appConfig == nil {
-			return fmt.Errorf("config file required for auto-diff (or provide two file arguments)")
+			slog.Error("config file required for auto-diff (or provide two file arguments)")
+			os.Exit(1)
 		}
 		trafficHash, err := hash.TrafficSourceHash(appConfig)
 		if err != nil {
-			return fmt.Errorf("failed to compute traffic hash: %w", err)
+			slog.Error("failed to compute traffic hash", "error", err)
+			os.Exit(1)
 		}
 
 		resultsDir := appConfig.ResultsDir
@@ -43,31 +44,27 @@ func runDiff(cmd *cobra.Command, args []string) error {
 
 		results, err := hash.FindResults(resultsDir, trafficHash)
 		if err != nil {
-			return fmt.Errorf("failed to scan results: %w", err)
+			slog.Error("failed to scan results", "error", err)
+			os.Exit(1)
 		}
 
 		unique := uniqueByRulesHash(results)
 		if len(unique) < 2 {
-			return fmt.Errorf("need at least 2 results with different rules for auto-diff (found %d), provide files explicitly", len(unique))
+			slog.Error("need at least 2 results with different rules for auto-diff, provide files explicitly", "found", len(unique))
+			os.Exit(1)
 		}
 
 		file1 = unique[1].Path // older
 		file2 = unique[0].Path // newer
 	}
 
-	report1, err := loadReport(file1)
-	if err != nil {
-		return err
-	}
-	report2, err := loadReport(file2)
-	if err != nil {
-		return err
-	}
+	report1 := loadReport(file1)
+	report2 := loadReport(file2)
 
 	diffReport := diff.Compare(report1, report2)
 	if diffReport.Total() == 0 {
 		slog.Info("no differences found")
-		return nil
+		return
 	}
 
 	slog.Info("differences found",
@@ -80,9 +77,9 @@ func runDiff(cmd *cobra.Command, args []string) error {
 	model := tui.NewDiffModel(diffReport)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		slog.Error("TUI error", "error", err)
+		os.Exit(1)
 	}
-	return nil
 }
 
 // uniqueByRulesHash returns results sorted by mtime desc, keeping only the

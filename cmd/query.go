@@ -30,7 +30,7 @@ var queryCmd = &cobra.Command{
 	Use:   "query",
 	Short: "Execute the traffic query and display HTTP requests",
 	Long:  `Executes the configured traffic query (parquet, gor, etc.) and displays the resulting HTTP requests without running WAF analysis.`,
-	RunE:  runQuery,
+	Run:   runQuery,
 }
 
 func init() {
@@ -39,7 +39,7 @@ func init() {
 	queryCmd.Flags().IntP("limit", "n", 0, "Limit number of requests displayed (0 = no limit)")
 }
 
-func runQuery(cmd *cobra.Command, args []string) error {
+func runQuery(cmd *cobra.Command, args []string) {
 	gorFile, _ := cmd.Flags().GetString("gor-file")
 	verbose, _ := cmd.Flags().GetBool("more")
 	limit, _ := cmd.Flags().GetInt("limit")
@@ -49,10 +49,7 @@ func runQuery(cmd *cobra.Command, args []string) error {
 		gorFile = appConfig.Traffic.File
 	}
 
-	reader, cleanup, err := openTrafficReader(gorFile)
-	if err != nil {
-		return fmt.Errorf("failed to open traffic source: %w", err)
-	}
+	reader, cleanup := openTrafficReader(gorFile)
 	defer cleanup()
 	defer reader.Close()
 
@@ -82,7 +79,6 @@ func runQuery(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\n%s\n", totalStyle.Render(fmt.Sprintf("Total: %d requests", count)))
-	return nil
 }
 
 var columnHeader = lipgloss.NewStyle().Bold(true).Underline(true).Faint(true)

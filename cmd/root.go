@@ -40,7 +40,7 @@ func verbosityLevel(count int) slog.Level {
 	case count == 1:
 		return slog.LevelWarn
 	default:
-		return slog.LevelError
+		return slog.LevelInfo
 	}
 }
 

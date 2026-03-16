@@ -1,8 +1,8 @@
 package cmd
 
 import (
-	"fmt"
 	"log/slog"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/jycamier/wafflex/internal/hash"
@@ -15,21 +15,23 @@ var exploreCmd = &cobra.Command{
 	Short: "Explore analysis results in an interactive TUI",
 	Long:  `Opens an interactive terminal UI to browse and filter WAF analysis results. Without arguments, opens the most recent result for the current traffic source.`,
 	Args:  cobra.MaximumNArgs(1),
-	RunE:  runExplore,
+	Run:   runExplore,
 }
 
-func runExplore(cmd *cobra.Command, args []string) error {
+func runExplore(cmd *cobra.Command, args []string) {
 	var resultsFile string
 
 	if len(args) == 1 {
 		resultsFile = args[0]
 	} else {
 		if appConfig == nil {
-			return fmt.Errorf("config file required for auto-explore (or provide a file argument)")
+			slog.Error("config file required for auto-explore (or provide a file argument)")
+			os.Exit(1)
 		}
 		trafficHash, err := hash.TrafficSourceHash(appConfig)
 		if err != nil {
-			return fmt.Errorf("failed to compute traffic hash: %w", err)
+			slog.Error("failed to compute traffic hash", "error", err)
+			os.Exit(1)
 		}
 		resultsDir := appConfig.ResultsDir
 		if resultsDir == "" {
@@ -37,28 +39,27 @@ func runExplore(cmd *cobra.Command, args []string) error {
 		}
 		latest, err := hash.FindLatestResult(resultsDir, trafficHash)
 		if err != nil {
-			return fmt.Errorf("failed to find results: %w", err)
+			slog.Error("failed to find results", "error", err)
+			os.Exit(1)
 		}
 		if latest == "" {
-			return fmt.Errorf("no results found for current traffic source, run 'analyze' first")
+			slog.Error("no results found for current traffic source, run 'analyze' first")
+			os.Exit(1)
 		}
 		resultsFile = latest
 	}
 
-	report, err := loadReport(resultsFile)
-	if err != nil {
-		return err
-	}
+	report := loadReport(resultsFile)
 
 	if len(report.Results) == 0 {
 		slog.Info("no blocked requests found in the report")
-		return nil
+		return
 	}
 
 	model := tui.NewExploreModel(report.Results)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		slog.Error("TUI error", "error", err)
+		os.Exit(1)
 	}
-	return nil
 }

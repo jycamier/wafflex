@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/jycamier/wafflex/internal/fetcher"
 	"github.com/jycamier/wafflex/internal/parser"
@@ -9,7 +10,7 @@ import (
 
 // openTrafficReader creates a TrafficReader from config and/or CLI flags.
 // Returns the reader and an optional cleanup function (for fetched remote files).
-func openTrafficReader(gorFile string) (parser.TrafficReader, func(), error) {
+func openTrafficReader(gorFile string) (parser.TrafficReader, func()) {
 	trafficQuery := ""
 	if appConfig != nil {
 		trafficQuery = appConfig.Traffic.Query
@@ -19,22 +20,26 @@ func openTrafficReader(gorFile string) (parser.TrafficReader, func(), error) {
 
 	if isParquet {
 		if trafficQuery == "" {
-			return nil, nil, fmt.Errorf("parquet query is required in config")
+			slog.Error("parquet query is required in config")
+			os.Exit(1)
 		}
 		reader, err := parser.NewParquetReader(trafficQuery, appConfig.Traffic.Columns, appConfig.Traffic.DuckDB.Init...)
 		if err != nil {
-			return nil, nil, err
+			slog.Error("failed to create parquet reader", "error", err)
+			os.Exit(1)
 		}
-		return reader, func() {}, nil
+		return reader, func() {}
 	}
 
 	if gorFile == "" {
-		return nil, nil, fmt.Errorf("traffic file is required (use --gor-file flag or config file)")
+		slog.Error("traffic file is required (use --gor-file flag or config file)")
+		os.Exit(1)
 	}
 
 	localTrafficFile, cleanup, err := fetcher.Resolve(gorFile)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to fetch traffic file: %w", err)
+		slog.Error("failed to fetch traffic file", "error", err)
+		os.Exit(1)
 	}
 
 	var reader parser.TrafficReader
@@ -45,8 +50,9 @@ func openTrafficReader(gorFile string) (parser.TrafficReader, func(), error) {
 	}
 	if err != nil {
 		cleanup()
-		return nil, nil, err
+		slog.Error("failed to create traffic reader", "error", err)
+		os.Exit(1)
 	}
 
-	return reader, cleanup, nil
+	return reader, cleanup
 }

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,7 +21,7 @@ var analyzeCmd = &cobra.Command{
 	Use:   "analyze",
 	Short: "Analyze traffic through Coraza WAF",
 	Long:  `Processes traffic through Coraza WAF, saves results, and opens the explore TUI.`,
-	RunE:  runAnalyze,
+	Run:   runAnalyze,
 }
 
 func init() {
@@ -32,7 +31,7 @@ func init() {
 	analyzeCmd.Flags().Bool("diff", false, "After analysis, diff with previous result (same traffic, different rules)")
 }
 
-func runAnalyze(cmd *cobra.Command, args []string) error {
+func runAnalyze(cmd *cobra.Command, args []string) {
 	gorFile, _ := cmd.Flags().GetString("gor-file")
 	corazaConfig, _ := cmd.Flags().GetString("coraza-config")
 	outputFile, _ := cmd.Flags().GetString("output")
@@ -47,10 +46,12 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	}
 
 	if corazaConfig == "" {
-		return fmt.Errorf("coraza config is required (use --coraza-config flag or config file)")
+		slog.Error("coraza config is required (use --coraza-config flag or config file)")
+		os.Exit(1)
 	}
 	if _, err := os.Stat(corazaConfig); os.IsNotExist(err) {
-		return fmt.Errorf("coraza config file does not exist: %s", corazaConfig)
+		slog.Error("coraza config file does not exist", "path", corazaConfig)
+		os.Exit(1)
 	}
 
 	explicitOutput := outputFile != ""
@@ -61,11 +62,13 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 		var err error
 		trafficHash, err = hash.TrafficSourceHash(appConfig)
 		if err != nil {
-			return fmt.Errorf("failed to compute traffic hash: %w", err)
+			slog.Error("failed to compute traffic hash", "error", err)
+			os.Exit(1)
 		}
 		rulesHash, err = hash.RulesHash(corazaConfig)
 		if err != nil {
-			return fmt.Errorf("failed to compute rules hash: %w", err)
+			slog.Error("failed to compute rules hash", "error", err)
+			os.Exit(1)
 		}
 
 		resultsDir := appConfig.ResultsDir
@@ -73,7 +76,8 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 			resultsDir = "."
 		}
 		if err := os.MkdirAll(resultsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create results directory: %w", err)
+			slog.Error("failed to create results directory", "error", err)
+			os.Exit(1)
 		}
 		outputFile = filepath.Join(resultsDir, hash.ResultFileName(trafficHash, rulesHash))
 	}
@@ -86,39 +90,33 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	if _, err := os.Stat(outputFile); err == nil {
 		slog.Info("results already exist, skipping analysis", "path", outputFile)
 	} else {
-		if err := executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash); err != nil {
-			return err
-		}
+		executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash)
 	}
 
 	// If explicit -o flag, no TUI (backward compat)
 	if explicitOutput {
-		return nil
+		return
 	}
 
 	// Load results for TUI
-	report, err := loadReport(outputFile)
-	if err != nil {
-		return err
-	}
+	report := loadReport(outputFile)
 
 	if doDiff {
-		return launchDiffTUI(report, outputFile, trafficHash, rulesHash)
+		launchDiffTUI(report, outputFile, trafficHash, rulesHash)
+		return
 	}
-	return launchExploreTUI(report)
+	launchExploreTUI(report)
 }
 
-func executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash string) error {
+func executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash string) {
 	engine, err := waf.NewWAFEngine(corazaConfig)
 	if err != nil {
-		return fmt.Errorf("failed to initialize WAF: %w", err)
+		slog.Error("failed to initialize WAF", "error", err)
+		os.Exit(1)
 	}
 	slog.Info("WAF engine initialized", "engine", engine.Name(), "version", engine.Version())
 
-	reader, cleanup, err := openTrafficReader(gorFile)
-	if err != nil {
-		return fmt.Errorf("failed to open traffic source: %w", err)
-	}
+	reader, cleanup := openTrafficReader(gorFile)
 	defer cleanup()
 	defer reader.Close()
 
@@ -192,67 +190,69 @@ func executeAnalysis(gorFile, corazaConfig, outputFile, trafficHash, rulesHash s
 
 	file, err := os.Create(outputFile)
 	if err != nil {
-		return fmt.Errorf("failed to create output file: %w", err)
+		slog.Error("failed to create output file", "error", err)
+		os.Exit(1)
 	}
 	defer file.Close()
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(report); err != nil {
-		return fmt.Errorf("failed to write JSON: %w", err)
+		slog.Error("failed to write JSON", "error", err)
+		os.Exit(1)
 	}
 
 	slog.Info("results saved", "path", outputFile)
-	return nil
 }
 
-func loadReport(path string) (*models.AnalysisReport, error) {
+func loadReport(path string) *models.AnalysisReport {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open results: %w", err)
+		slog.Error("failed to open results", "error", err)
+		os.Exit(1)
 	}
 	defer f.Close()
 
 	var report models.AnalysisReport
 	if err := json.NewDecoder(f).Decode(&report); err != nil {
-		return nil, fmt.Errorf("failed to parse results: %w", err)
+		slog.Error("failed to parse results", "error", err)
+		os.Exit(1)
 	}
-	return &report, nil
+	return &report
 }
 
-func launchExploreTUI(report *models.AnalysisReport) error {
+func launchExploreTUI(report *models.AnalysisReport) {
 	if len(report.Results) == 0 {
 		slog.Info("no blocked requests found")
-		return nil
+		return
 	}
 	model := tui.NewExploreModel(report.Results)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		slog.Error("TUI error", "error", err)
+		os.Exit(1)
 	}
-	return nil
 }
 
-func launchDiffTUI(report *models.AnalysisReport, currentFile, trafficHash, rulesHash string) error {
+func launchDiffTUI(report *models.AnalysisReport, currentFile, trafficHash, rulesHash string) {
 	resultsDir := filepath.Dir(currentFile)
 	prevFile, err := hash.FindPreviousDiff(resultsDir, trafficHash, rulesHash)
 	if err != nil {
-		return fmt.Errorf("failed to find previous result: %w", err)
+		slog.Error("failed to find previous result", "error", err)
+		os.Exit(1)
 	}
 	if prevFile == "" {
 		slog.Warn("no previous result found for diff, falling back to explore")
-		return launchExploreTUI(report)
+		launchExploreTUI(report)
+		return
 	}
 
-	prevReport, err := loadReport(prevFile)
-	if err != nil {
-		return err
-	}
+	prevReport := loadReport(prevFile)
 
 	diffReport := diff.Compare(prevReport, report)
 	if diffReport.Total() == 0 {
 		slog.Info("no differences found")
-		return nil
+		return
 	}
 
 	slog.Info("differences found",
@@ -265,7 +265,7 @@ func launchDiffTUI(report *models.AnalysisReport, currentFile, trafficHash, rule
 	model := tui.NewDiffModel(diffReport)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("TUI error: %w", err)
+		slog.Error("TUI error", "error", err)
+		os.Exit(1)
 	}
-	return nil
 }
