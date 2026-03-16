@@ -11,9 +11,10 @@ import (
 )
 
 var baselineCmd = &cobra.Command{
-	Use:   "baseline",
-	Short: "Set the latest analysis as baseline for diffs",
-	Long:  `Sets the most recent analysis result as the baseline. Use 'baseline set <file>' to choose a specific file, or 'baseline -' to swap with the previous baseline.`,
+	Use:   "baseline [- | set <file>]",
+	Short: "Manage the baseline for diffs",
+	Long:  `Without arguments, sets the most recent analysis as baseline. Use 'baseline set <file>' to choose a specific file, or 'baseline -' to swap with the previous baseline.`,
+	Args:  cobra.MaximumNArgs(1),
 	Run:   runBaseline,
 }
 
@@ -24,15 +25,8 @@ var baselineSetCmd = &cobra.Command{
 	Run:   runBaselineSet,
 }
 
-var baselineSwapCmd = &cobra.Command{
-	Use:   "-",
-	Short: "Swap to the previous baseline",
-	Run:   runBaselineSwap,
-}
-
 func init() {
 	baselineCmd.AddCommand(baselineSetCmd)
-	baselineCmd.AddCommand(baselineSwapCmd)
 }
 
 func resolveResultsDir() string {
@@ -43,7 +37,9 @@ func resolveResultsDir() string {
 }
 
 func runBaseline(cmd *cobra.Command, args []string) {
-	if len(args) > 0 {
+	// Handle "baseline -" as swap
+	if len(args) == 1 && args[0] == "-" {
+		runBaselineSwap()
 		return
 	}
 
@@ -82,7 +78,6 @@ func runBaselineSet(cmd *cobra.Command, args []string) {
 	resultsDir := resolveResultsDir()
 	file := args[0]
 
-	// Check the file exists (relative to resultsDir or absolute)
 	path := file
 	if !filepath.IsAbs(file) {
 		if _, err := os.Stat(file); err != nil {
@@ -102,7 +97,7 @@ func runBaselineSet(cmd *cobra.Command, args []string) {
 	slog.Info("baseline set", "file", filename)
 }
 
-func runBaselineSwap(cmd *cobra.Command, args []string) {
+func runBaselineSwap() {
 	resultsDir := resolveResultsDir()
 
 	if err := baseline.Swap(resultsDir); err != nil {
