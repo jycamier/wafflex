@@ -16,7 +16,7 @@ var cacheCmd = &cobra.Command{
 
 var cacheClearCmd = &cobra.Command{
 	Use:   "clear",
-	Short: "Clear all cached parquet query results",
+	Short: "Clear all cached query results and analysis results",
 	Run: func(cmd *cobra.Command, args []string) {
 		dir, _ := cache.Dir()
 		if err := cache.Clear(); err != nil {
@@ -24,6 +24,14 @@ var cacheClearCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		slog.Info("cache cleared", "dir", dir)
+
+		if appConfig != nil && appConfig.ResultsDir != "" {
+			if err := cache.ClearDir(appConfig.ResultsDir); err != nil {
+				slog.Error("failed to clear results", "error", err)
+				os.Exit(1)
+			}
+			slog.Info("results cleared", "dir", appConfig.ResultsDir)
+		}
 	},
 }
 
