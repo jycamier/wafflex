@@ -212,6 +212,12 @@ func (r *ParquetReader) rowToRequest(values []interface{}, colIndex map[string]i
 	if r.columns.ClientIP != "" {
 		req.RemoteAddr = getStringValue(values, colIndex, r.columns.ClientIP)
 	}
+	if r.columns.Timestamp != "" {
+		ts := getStringValue(values, colIndex, r.columns.Timestamp)
+		if ts != "" {
+			req = req.WithContext(context.WithValue(req.Context(), ContextKeyTimestamp, ts))
+		}
+	}
 	if r.columns.Headers != "" {
 		headersJSON := getStringValue(values, colIndex, r.columns.Headers)
 		if headersJSON != "" {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/jycamier/wafflex/internal/parser"
 	"github.com/spf13/cobra"
 )
 
@@ -120,6 +121,10 @@ func printRequestVerbose(index int, req *http.Request) {
 	fmt.Printf("%s%s\n", labelStyle.Render("Host"), hostStyle.Render(req.Host))
 	fmt.Printf("%s%s\n", labelStyle.Render("Proto"), req.Proto)
 	fmt.Printf("%s%s\n", labelStyle.Render("Client IP"), ipStyle.Render(req.RemoteAddr))
+
+	if ts, ok := req.Context().Value(parser.ContextKeyTimestamp).(string); ok && ts != "" {
+		fmt.Printf("%s%s\n", labelStyle.Render("Date"), ts)
+	}
 
 	if len(req.Header) > 0 {
 		fmt.Printf("%s\n", labelStyle.Render("Headers"))

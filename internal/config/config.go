@@ -10,13 +10,14 @@ import (
 const FileName = ".wafflex.yaml"
 
 type ColumnMapping struct {
-	Method   string `mapstructure:"method"`
-	Path     string `mapstructure:"path"`
-	Host     string `mapstructure:"host"`
-	Proto    string `mapstructure:"proto"`
-	Headers  string `mapstructure:"headers"`
-	Body     string `mapstructure:"body"`
-	ClientIP string `mapstructure:"client_ip"`
+	Method    string `mapstructure:"method"`
+	Path      string `mapstructure:"path"`
+	Host      string `mapstructure:"host"`
+	Proto     string `mapstructure:"proto"`
+	Headers   string `mapstructure:"headers"`
+	Body      string `mapstructure:"body"`
+	ClientIP  string `mapstructure:"client_ip"`
+	Timestamp string `mapstructure:"timestamp"`
 }
 
 type DuckDBConfig struct {
