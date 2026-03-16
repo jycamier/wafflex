@@ -233,7 +233,7 @@ func launchExploreTUI(report *models.AnalysisReport) {
 		slog.Info("no blocked requests found")
 		return
 	}
-	model := tui.NewExploreModel(report.Results)
+	model := tui.NewExploreModel(report.Results, report.Metadata.TotalRequests)
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		slog.Error("TUI error", "error", err)

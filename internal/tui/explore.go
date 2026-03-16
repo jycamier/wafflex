@@ -36,55 +36,49 @@ func (i item) FilterValue() string {
 }
 
 type ExploreModel struct {
-	list     list.Model
-	viewport viewport.Model
-	results  []models.Result
-	selected int
-	width    int
-	height   int
-	focused  bool
-	ready    bool
-	groupBy  string // "", "rule", "ip", "user-agent"
-	grouped  map[string][]models.Result
+	list          list.Model
+	viewport      viewport.Model
+	results       []models.Result
+	totalRequests int
+	selected      int
+	width         int
+	height        int
+	focused       bool
+	ready         bool
+	groupBy       string // "", "rule", "ip", "user-agent"
+	grouped       map[string][]models.Result
 }
 
-func NewExploreModel(results []models.Result) ExploreModel {
+func NewExploreModel(results []models.Result, totalRequests int) ExploreModel {
 	items := make([]list.Item, len(results))
 	for i, r := range results {
 		items[i] = item{result: r}
 	}
 
 	l := list.New(items, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "Blocked Requests"
+	pct := float64(0)
+	if totalRequests > 0 {
+		pct = float64(len(results)) / float64(totalRequests) * 100
+	}
+	l.Title = fmt.Sprintf("Blocked Requests — %.1f%% blocked (%d/%d)", pct, len(results), totalRequests)
 	l.SetShowStatusBar(true)
 	l.SetFilteringEnabled(true)
 	l.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			key.NewBinding(
-				key.WithKeys("/"),
-				key.WithHelp("/", "filter by rule/tag/method"),
-			),
-			key.NewBinding(
-				key.WithKeys("↑/↓"),
-				key.WithHelp("↑/↓", "navigate"),
-			),
-			key.NewBinding(
-				key.WithKeys("g"),
-				key.WithHelp("g", "group by (rule/ip/header)"),
-			),
-			key.NewBinding(
-				key.WithKeys("q"),
-				key.WithHelp("q", "quit"),
-			),
+			key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "switch panel focus")),
+			key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+			key.NewBinding(key.WithKeys("g"), key.WithHelp("g", "group by")),
+			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
 		}
 	}
 
 	return ExploreModel{
-		list:    l,
-		results: results,
-		focused: true,
-		groupBy: "",
-		grouped: make(map[string][]models.Result),
+		list:          l,
+		results:       results,
+		totalRequests: totalRequests,
+		focused:       false,
+		groupBy:       "",
+		grouped:       make(map[string][]models.Result),
 	}
 }
 
@@ -114,39 +108,42 @@ func (m ExploreModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "tab":
+			m.focused = !m.focused
+			return m, nil
 		case "g":
-			// Cycle through group by modes
-			switch m.groupBy {
-			case "":
-				m.groupBy = "rule"
-			case "rule":
-				m.groupBy = "ip"
-			case "ip":
-				m.groupBy = "user-agent"
-			case "user-agent":
-				m.groupBy = ""
+			if !m.focused {
+				switch m.groupBy {
+				case "":
+					m.groupBy = "rule"
+				case "rule":
+					m.groupBy = "ip"
+				case "ip":
+					m.groupBy = "user-agent"
+				case "user-agent":
+					m.groupBy = ""
+				}
+				m.rebuildList()
 			}
-			m.rebuildList()
 			return m, nil
 		}
 	}
 
 	var cmd tea.Cmd
-	
-	// Update list
-	oldSelected := m.list.Index()
-	m.list, cmd = m.list.Update(msg)
-	m.selected = m.list.Index()
-	
-	// Update viewport content if selection changed
-	if oldSelected != m.selected {
-		m.viewport.SetContent(m.renderDetails())
-		m.viewport.GotoTop()
+
+	if m.focused {
+		m.viewport, cmd = m.viewport.Update(msg)
+	} else {
+		oldSelected := m.list.Index()
+		m.list, cmd = m.list.Update(msg)
+		m.selected = m.list.Index()
+
+		if oldSelected != m.selected {
+			m.viewport.SetContent(m.renderDetails())
+			m.viewport.GotoTop()
+		}
 	}
-	
-	// Update viewport for scrolling
-	m.viewport, _ = m.viewport.Update(msg)
-	
+
 	return m, cmd
 }
 
@@ -157,22 +154,32 @@ func (m ExploreModel) View() string {
 
 	leftWidth := m.width/2 - 2
 	rightWidth := m.width/2 - 2
+	focusColor := lipgloss.Color("205")
+	normalColor := lipgloss.Color("62")
+
+	leftBorder := normalColor
+	rightBorder := normalColor
+	if m.focused {
+		rightBorder = focusColor
+	} else {
+		leftBorder = focusColor
+	}
 
 	leftStyle := lipgloss.NewStyle().
 		Width(leftWidth).
 		Height(m.height - 2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62"))
+		BorderForeground(leftBorder)
 
 	rightStyle := lipgloss.NewStyle().
 		Width(rightWidth).
 		Height(m.height - 2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1)
+		BorderForeground(rightBorder).
+		Padding(0, 1)
 
 	leftPanel := leftStyle.Render(m.list.View())
-	
+
 	var rightPanel string
 	if m.ready {
 		rightPanel = rightStyle.Render(m.viewport.View())
@@ -198,7 +205,7 @@ func (m ExploreModel) renderDetails() string {
 	
 	// Regular item
 	if item, ok := selectedItem.(item); ok {
-		return m.renderResultDetails(item.result)
+		return RenderResultDetail(&item.result, "HTTP REQUEST")
 	}
 	
 	return "No selection"
@@ -206,25 +213,14 @@ func (m ExploreModel) renderDetails() string {
 
 func (m ExploreModel) renderGroupDetails(group groupItem) string {
 	var sections []string
-	
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Background(lipgloss.Color("235")).
-		Padding(0, 1).
-		MarginBottom(1)
-	
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("33"))
-	
+
 	// Group summary
 	var summary strings.Builder
-	summary.WriteString(labelStyle.Render("Group:") + " " + group.key + "\n")
-	summary.WriteString(labelStyle.Render("Count:") + fmt.Sprintf(" %d requests\n\n", group.count))
+	summary.WriteString(detailLabelStyle.Render("Group:") + " " + group.key + "\n")
+	summary.WriteString(detailLabelStyle.Render("Count:") + fmt.Sprintf(" %d requests\n\n", group.count))
 	
 	// Show first 5 examples
-	summary.WriteString(labelStyle.Render("Examples:") + "\n")
+	summary.WriteString(detailLabelStyle.Render("Examples:") + "\n")
 	for i, result := range group.results {
 		if i >= 5 {
 			summary.WriteString(fmt.Sprintf("\n... and %d more", len(group.results)-5))
@@ -237,102 +233,21 @@ func (m ExploreModel) renderGroupDetails(group groupItem) string {
 		summary.WriteString("\n")
 	}
 	
-	sections = append(sections, titleStyle.Render("GROUP SUMMARY")+"\n"+summary.String())
+	sections = append(sections, detailTitleStyle.Render("GROUP SUMMARY")+"\n"+summary.String())
 	
 	return strings.Join(sections, "\n\n")
 }
 
-func (m ExploreModel) renderResultDetails(result models.Result) string {
-	
-	// Styles
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("205")).
-		Background(lipgloss.Color("235")).
-		Padding(0, 1).
-		MarginBottom(1)
-	
-	labelStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("33"))
-	
-	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("252"))
-	
-	dimStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Italic(true)
-	
-	ruleStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		Padding(0, 1).
-		MarginBottom(1)
-	
-	var sections []string
-	
-	// HTTP Request section
-	var reqContent strings.Builder
-	reqContent.WriteString(labelStyle.Render("Method & URL") + "\n")
-	reqContent.WriteString(valueStyle.Render(fmt.Sprintf("%s %s", result.Request.Method, result.Request.URL)) + "\n\n")
-	
-	if result.Request.ClientIP != "" {
-		reqContent.WriteString(labelStyle.Render("Client IP") + "\n")
-		reqContent.WriteString(valueStyle.Render(result.Request.ClientIP) + "\n\n")
+func (m ExploreModel) statsTitle(suffix string) string {
+	pct := float64(0)
+	if m.totalRequests > 0 {
+		pct = float64(len(m.results)) / float64(m.totalRequests) * 100
 	}
-	
-	reqContent.WriteString(labelStyle.Render("Headers") + "\n")
-	if len(result.Request.Headers) > 0 {
-		for k, v := range result.Request.Headers {
-			reqContent.WriteString(fmt.Sprintf("  %s: %s\n", k, valueStyle.Render(v)))
-		}
-	} else {
-		reqContent.WriteString(dimStyle.Render("  (no headers captured)") + "\n")
+	title := fmt.Sprintf("Blocked Requests — %.1f%% blocked (%d/%d)", pct, len(m.results), m.totalRequests)
+	if suffix != "" {
+		title += " — " + suffix
 	}
-	reqContent.WriteString("\n")
-	
-	reqContent.WriteString(labelStyle.Render("Body") + "\n")
-	if result.Request.Body != "" {
-		body := result.Request.Body
-		if len(body) > 500 {
-			body = body[:500] + "..."
-		}
-		reqContent.WriteString(valueStyle.Render(body) + "\n")
-	} else {
-		reqContent.WriteString(dimStyle.Render("  (empty)") + "\n")
-	}
-	
-	sections = append(sections, titleStyle.Render("HTTP REQUEST")+"\n"+reqContent.String())
-	
-	// Rules section
-	var rulesContent strings.Builder
-	for i, rule := range result.RulesTriggered {
-		var ruleText strings.Builder
-		ruleText.WriteString(labelStyle.Render(fmt.Sprintf("Rule #%d: %s", i+1, rule.ID)) + "\n")
-		ruleText.WriteString(fmt.Sprintf("Severity: %s\n", rule.Severity))
-		ruleText.WriteString(fmt.Sprintf("Message: %s\n", rule.Message))
-		if len(rule.Tags) > 0 {
-			ruleText.WriteString(fmt.Sprintf("Tags: %s", strings.Join(rule.Tags, ", ")))
-		}
-		rulesContent.WriteString(ruleStyle.Render(ruleText.String()) + "\n")
-	}
-	
-	sections = append(sections, titleStyle.Render("RULES TRIGGERED")+"\n"+rulesContent.String())
-	
-	// Interruption section
-	if result.Interruption != nil {
-		var intContent strings.Builder
-		intContent.WriteString(fmt.Sprintf("%s: %s\n", labelStyle.Render("Action"), result.Interruption.Action))
-		intContent.WriteString(fmt.Sprintf("%s: %d", labelStyle.Render("Status"), result.Interruption.Status))
-		sections = append(sections, titleStyle.Render("INTERRUPTION")+"\n"+intContent.String())
-	}
-	
-	// Logs section
-	if result.Logs != "" {
-		sections = append(sections, titleStyle.Render("CORAZA LOGS")+"\n"+dimStyle.Render(result.Logs))
-	}
-	
-	return strings.Join(sections, "\n\n")
+	return title
 }
 
 func (m *ExploreModel) rebuildList() {
@@ -344,7 +259,7 @@ func (m *ExploreModel) rebuildList() {
 		for _, r := range m.results {
 			items = append(items, item{result: r})
 		}
-		m.list.Title = "Blocked Requests"
+		m.list.Title = m.statsTitle("")
 	} else {
 		// Group results
 		for _, r := range m.results {
@@ -387,7 +302,7 @@ func (m *ExploreModel) rebuildList() {
 			})
 		}
 		
-		m.list.Title = fmt.Sprintf("Blocked Requests (grouped by %s)", m.groupBy)
+		m.list.Title = m.statsTitle(fmt.Sprintf("grouped by %s", m.groupBy))
 	}
 	
 	m.list.SetItems(items)
